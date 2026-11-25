@@ -1,0 +1,1061 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project07.red.sec/schemas/event.schema.json",
+  "title": "RedNetworkOperatorEventEnvelope",
+  "description": "Standardized event envelope contract for Projects 04, 05, 06, and 07 analytics.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "schema_version",
+    "campaign_id",
+    "run_id",
+    "ts",
+    "source",
+    "type",
+    "status",
+    "host",
+    "technique",
+    "correlation",
+    "details",
+    "metadata"
+  ],
+  "properties": {
+    "event_id": {
+      "$ref": "#/$defs/uuid_v4"
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "campaign_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ts": {
+      "$ref": "#/$defs/iso8601_utc"
+    },
+    "received_at": {
+      "anyOf": [
+        { "$ref": "#/$defs/iso8601_utc" },
+        { "type": "null" }
+      ]
+    },
+    "source": {
+      "type": "string",
+      "enum": ["p4_c2", "p5_shell", "p6_exfil", "p7_analytics"]
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "agent_registered",
+        "beacon_checkin",
+        "task_started",
+        "task_progress",
+        "task_completed",
+        "task_failed",
+        "connection_requested",
+        "connection_established",
+        "connection_failed",
+        "session_activity",
+        "session_closed",
+        "transfer_started",
+        "transfer_progress",
+        "transfer_completed",
+        "transfer_failed",
+        "beacon_missed",
+        "task_stalled",
+        "session_stalled",
+        "transfer_stalled",
+        "timeout_expired"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "running", "completed", "failed", "stalled", "timeout"]
+    },
+    "host": {
+      "$ref": "#/$defs/host_endpoint"
+    },
+    "destination": {
+      "anyOf": [
+        { "$ref": "#/$defs/destination_endpoint" },
+        { "type": "null" }
+      ]
+    },
+    "technique": {
+      "$ref": "#/$defs/technique_def"
+    },
+    "correlation": {
+      "$ref": "#/$defs/correlation_def"
+    },
+    "timeout_sec": {
+      "type": ["integer", "null"],
+      "exclusiveMinimum": 0
+    },
+    "bytes_transferred_delta": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "details": {
+      "type": "object"
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata_def"
+    }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "uuid_v4": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "iso8601_utc": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|\\+00:00)$"
+    },
+    "ipv4_or_ipv6": {
+      "type": "string",
+      "anyOf": [
+        { "format": "ipv4" },
+        { "format": "ipv6" }
+      ]
+    },
+    "host_endpoint": {
+      "type": "object",
+      "required": ["host_id", "role"],
+      "anyOf": [
+        { "required": ["ip"], "properties": { "ip": { "type": "string" } } },
+        { "required": ["hostname"], "properties": { "hostname": { "type": "string" } } }
+      ],
+      "properties": {
+        "host_id": { "type": "string", "minLength": 1 },
+        "ip": {
+          "anyOf": [
+            { "$ref": "#/$defs/ipv4_or_ipv6" },
+            { "type": "null" }
+          ]
+        },
+        "hostname": {
+          "anyOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ]
+        },
+        "role": {
+          "type": "string",
+          "enum": ["target", "pivot", "c2_server", "operator_listener", "exfil_receiver"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "destination_endpoint": {
+      "type": "object",
+      "required": ["protocol", "role"],
+      "anyOf": [
+        { "required": ["ip"], "properties": { "ip": { "type": "string" } } },
+        { "required": ["hostname"], "properties": { "hostname": { "type": "string" } } }
+      ],
+      "properties": {
+        "ip": {
+          "anyOf": [
+            { "$ref": "#/$defs/ipv4_or_ipv6" },
+            { "type": "null" }
+          ]
+        },
+        "hostname": {
+          "anyOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ]
+        },
+        "port": {
+          "anyOf": [
+            { "type": "integer", "minimum": 1, "maximum": 65535 },
+            { "type": "null" }
+          ]
+        },
+        "protocol": {
+          "type": "string",
+          "enum": ["tcp", "udp", "icmp", "http", "https", "dns", "custom"]
+        },
+        "role": {
+          "type": "string",
+          "enum": ["c2_server", "operator_listener", "exfil_receiver", "target", "pivot"]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "protocol": { "const": "icmp" } } },
+          "then": {
+            "properties": {
+              "port": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "technique_def": {
+      "type": "object",
+      "required": ["id", "internal_name"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "internal_name": { "type": "string", "minLength": 1 },
+        "attack_id": {
+          "anyOf": [
+            { "type": "string", "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$" },
+            { "type": "null" }
+          ]
+        },
+        "attack_name": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        },
+        "tactic": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "correlation_def": {
+      "type": "object",
+      "required": ["entity_id", "entity_type", "parent_id"],
+      "properties": {
+        "entity_id": { "type": "string", "minLength": 1 },
+        "entity_type": {
+          "type": "string",
+          "enum": ["agent", "task", "session", "transfer"]
+        },
+        "parent_id": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "metadata_def": {
+      "type": "object",
+      "required": ["is_simulated", "generator", "inferred"],
+      "properties": {
+        "is_simulated": { "type": "boolean", "const": true },
+        "generator": { "type": "string", "minLength": 1 },
+        "inferred": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+
+  "allOf": [
+    {
+      "comment": "Source: p4_c2 rules",
+      "if": { "properties": { "source": { "const": "p4_c2" } } },
+      "then": {
+        "properties": {
+          "type": {
+            "enum": [
+              "agent_registered",
+              "beacon_checkin",
+              "task_started",
+              "task_progress",
+              "task_completed",
+              "task_failed"
+            ]
+          },
+          "metadata": {
+            "properties": { "inferred": { "const": false } }
+          }
+        }
+      }
+    },
+    {
+      "comment": "Source: p5_shell rules",
+      "if": { "properties": { "source": { "const": "p5_shell" } } },
+      "then": {
+        "properties": {
+          "type": {
+            "enum": [
+              "connection_requested",
+              "connection_established",
+              "connection_failed",
+              "session_activity",
+              "session_closed"
+            ]
+          },
+          "metadata": {
+            "properties": { "inferred": { "const": false } }
+          }
+        }
+      }
+    },
+    {
+      "comment": "Source: p6_exfil rules",
+      "if": { "properties": { "source": { "const": "p6_exfil" } } },
+      "then": {
+        "properties": {
+          "type": {
+            "enum": [
+              "transfer_started",
+              "transfer_progress",
+              "transfer_completed",
+              "transfer_failed"
+            ]
+          },
+          "metadata": {
+            "properties": { "inferred": { "const": false } }
+          }
+        }
+      }
+    },
+    {
+      "comment": "Source: p7_analytics rules",
+      "if": { "properties": { "source": { "const": "p7_analytics" } } },
+      "then": {
+        "properties": {
+          "type": {
+            "enum": [
+              "beacon_missed",
+              "task_stalled",
+              "session_stalled",
+              "transfer_stalled",
+              "timeout_expired"
+            ]
+          },
+          "metadata": {
+            "properties": { "inferred": { "const": true } }
+          }
+        }
+      }
+    },
+
+    {
+      "comment": "Type-Status mapping",
+      "if": { "properties": { "type": { "const": "agent_registered" } } },
+      "then": { "properties": { "status": { "const": "running" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "beacon_checkin" } } },
+      "then": { "properties": { "status": { "const": "running" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "task_started" } } },
+      "then": { "properties": { "status": { "const": "running" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "task_progress" } } },
+      "then": { "properties": { "status": { "const": "running" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "task_completed" } } },
+      "then": { "properties": { "status": { "const": "completed" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "task_failed" } } },
+      "then": { "properties": { "status": { "const": "failed" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "connection_requested" } } },
+      "then": { "properties": { "status": { "const": "pending" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "connection_established" } } },
+      "then": { "properties": { "status": { "const": "running" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "connection_failed" } } },
+      "then": { "properties": { "status": { "const": "failed" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "session_activity" } } },
+      "then": { "properties": { "status": { "const": "running" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "session_closed" } } },
+      "then": { "properties": { "status": { "const": "completed" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "transfer_started" } } },
+      "then": { "properties": { "status": { "const": "running" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "transfer_progress" } } },
+      "then": { "properties": { "status": { "const": "running" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "transfer_completed" } } },
+      "then": { "properties": { "status": { "const": "completed" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "transfer_failed" } } },
+      "then": { "properties": { "status": { "const": "failed" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "beacon_missed" } } },
+      "then": { "properties": { "status": { "const": "stalled" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "task_stalled" } } },
+      "then": { "properties": { "status": { "const": "stalled" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "session_stalled" } } },
+      "then": { "properties": { "status": { "const": "stalled" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "transfer_stalled" } } },
+      "then": { "properties": { "status": { "const": "stalled" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "timeout_expired" } } },
+      "then": { "properties": { "status": { "const": "timeout" } } }
+    },
+
+    {
+      "comment": "Mandatory initiation timeout_sec",
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "agent_registered",
+              "task_started",
+              "connection_requested",
+              "connection_established",
+              "transfer_started"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": ["timeout_sec"],
+        "properties": {
+          "timeout_sec": { "type": "integer", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+
+    {
+      "comment": "Correlation entity_type constraints",
+      "if": { "properties": { "type": { "enum": ["agent_registered", "beacon_checkin", "beacon_missed"] } } },
+      "then": {
+        "properties": {
+          "correlation": {
+            "properties": {
+              "entity_type": { "const": "agent" },
+              "parent_id": { "type": "null" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["task_started", "task_progress", "task_completed", "task_failed", "task_stalled"] } } },
+      "then": {
+        "properties": {
+          "correlation": {
+            "properties": {
+              "entity_type": { "const": "task" },
+              "parent_id": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["connection_requested", "connection_established", "connection_failed", "session_activity", "session_closed", "session_stalled"] } } },
+      "then": {
+        "properties": {
+          "correlation": {
+            "properties": {
+              "entity_type": { "const": "session" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["transfer_started", "transfer_progress", "transfer_completed", "transfer_failed", "transfer_stalled"] } } },
+      "then": {
+        "properties": {
+          "correlation": {
+            "properties": {
+              "entity_type": { "const": "transfer" }
+            }
+          }
+        }
+      }
+    },
+
+    {
+      "comment": "P4 Details: agent_registered",
+      "if": { "properties": { "type": { "const": "agent_registered" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["channel", "agent_version", "beacon_interval_sec", "jitter_percent", "encryption_scheme", "supported_executors"],
+            "properties": {
+              "channel": { "type": "string", "enum": ["http", "https", "dns"] },
+              "agent_version": { "type": "string", "minLength": 1 },
+              "beacon_interval_sec": { "type": "integer", "exclusiveMinimum": 0 },
+              "jitter_percent": { "type": "integer", "minimum": 0, "maximum": 100 },
+              "encryption_scheme": { "type": "string", "minLength": 1 },
+              "supported_executors": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string", "enum": ["simulated_posix", "simulated_windows", "internal_simulator"] }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P4 Details: beacon_checkin",
+      "if": { "properties": { "type": { "const": "beacon_checkin" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["channel", "beacon_counter", "latency_ms", "tasks_pending_count"],
+            "properties": {
+              "channel": { "type": "string", "enum": ["http", "https", "dns"] },
+              "beacon_counter": { "type": "integer", "minimum": 1 },
+              "latency_ms": { "type": "integer", "minimum": 0 },
+              "tasks_pending_count": { "type": "integer", "minimum": 0 },
+              "active_jitter_sec": { "type": ["number", "null"], "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P4 Details: task_started",
+      "if": { "properties": { "type": { "const": "task_started" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["channel", "action_label", "task_parameters", "executor"],
+            "properties": {
+              "channel": { "type": "string", "enum": ["http", "https", "dns"] },
+              "action_label": {
+                "type": "string",
+                "enum": [
+                  "simulate_host_inventory",
+                  "simulate_process_enumeration",
+                  "simulate_network_discovery",
+                  "simulate_user_discovery",
+                  "simulate_service_status_check",
+                  "simulate_file_metadata_query"
+                ]
+              },
+              "task_parameters": { "type": "object" },
+              "executor": { "type": "string", "enum": ["simulated_posix", "simulated_windows", "internal_simulator"] }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "action_label": { "const": "simulate_host_inventory" } } },
+                "then": {
+                  "properties": {
+                    "task_parameters": {
+                      "type": "object",
+                      "required": ["scope", "detail_level"],
+                      "properties": {
+                        "scope": { "type": "string", "enum": ["system", "hardware", "os"] },
+                        "detail_level": { "type": "string", "enum": ["basic", "full"] }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              },
+              {
+                "if": { "properties": { "action_label": { "const": "simulate_process_enumeration" } } },
+                "then": {
+                  "properties": {
+                    "task_parameters": {
+                      "type": "object",
+                      "required": ["filter_system_procs", "max_results"],
+                      "properties": {
+                        "filter_system_procs": { "type": "boolean" },
+                        "max_results": { "type": "integer", "minimum": 1, "maximum": 500 }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              },
+              {
+                "if": { "properties": { "action_label": { "const": "simulate_network_discovery" } } },
+                "then": {
+                  "properties": {
+                    "task_parameters": {
+                      "type": "object",
+                      "required": ["simulation_scope", "discovery_method"],
+                      "properties": {
+                        "simulation_scope": { "type": "string", "enum": ["synthetic_lab_segment_01", "synthetic_lab_segment_02", "synthetic_dmz_zone"] },
+                        "discovery_method": { "type": "string", "enum": ["simulated_icmp_sweep", "simulated_tcp_probe", "simulated_arp_broadcast"] }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              },
+              {
+                "if": { "properties": { "action_label": { "const": "simulate_user_discovery" } } },
+                "then": {
+                  "properties": {
+                    "task_parameters": {
+                      "type": "object",
+                      "required": ["include_service_accounts", "domain_scope"],
+                      "properties": {
+                        "include_service_accounts": { "type": "boolean" },
+                        "domain_scope": { "type": "string", "enum": ["local", "domain"] }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              },
+              {
+                "if": { "properties": { "action_label": { "const": "simulate_service_status_check" } } },
+                "then": {
+                  "properties": {
+                    "task_parameters": {
+                      "type": "object",
+                      "required": ["service_name_tag", "check_timeout_sec"],
+                      "properties": {
+                        "service_name_tag": { "type": "string", "minLength": 1, "maxLength": 32 },
+                        "check_timeout_sec": { "type": "integer", "minimum": 1, "maximum": 60 }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              },
+              {
+                "if": { "properties": { "action_label": { "const": "simulate_file_metadata_query" } } },
+                "then": {
+                  "properties": {
+                    "task_parameters": {
+                      "type": "object",
+                      "required": ["directory_tag", "recursive"],
+                      "properties": {
+                        "directory_tag": { "type": "string", "enum": ["system_logs", "config_store", "staging_area"] },
+                        "recursive": { "type": "boolean" }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P4 Details: task_progress",
+      "if": { "properties": { "type": { "const": "task_progress" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["progress_percent", "output_chunk_index", "partial_output_len"],
+            "properties": {
+              "progress_percent": { "type": "integer", "minimum": 0, "maximum": 100 },
+              "output_chunk_index": { "type": "integer", "minimum": 0 },
+              "partial_output_len": { "type": "integer", "minimum": 0 },
+              "total_size_bytes": { "type": ["integer", "null"], "minimum": 0 },
+              "bytes_transferred_total": { "type": ["integer", "null"], "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P4 Details: task_completed",
+      "if": { "properties": { "type": { "const": "task_completed" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["exit_code", "execution_duration_ms", "output_summary", "total_output_bytes"],
+            "properties": {
+              "exit_code": { "type": "integer", "const": 0 },
+              "execution_duration_ms": { "type": "integer", "minimum": 0 },
+              "output_summary": { "type": "string", "minLength": 1 },
+              "total_output_bytes": { "type": "integer", "minimum": 0 },
+              "bytes_transferred_total": { "type": ["integer", "null"], "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P4 Details: task_failed",
+      "if": { "properties": { "type": { "const": "task_failed" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["exit_code", "execution_duration_ms", "error_type", "error_message"],
+            "properties": {
+              "exit_code": { "type": "integer", "not": { "const": 0 } },
+              "execution_duration_ms": { "type": "integer", "minimum": 0 },
+              "error_type": { "type": "string", "minLength": 1 },
+              "error_message": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+
+    {
+      "comment": "P5 Shell Details Common",
+      "if": { "properties": { "source": { "const": "p5_shell" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["shell_technique", "shell_environment"],
+            "properties": {
+              "shell_technique": { "type": "string", "enum": ["tcp_reverse", "https_tunnel", "dns_cmd", "icmp_echo", "udp_raw"] },
+              "shell_environment": { "type": "string", "enum": ["posix", "windows", "custom", "unknown"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "comment": "P5 Details: connection_requested",
+      "if": { "properties": { "type": { "const": "connection_requested" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "required": ["shell_technique", "shell_environment", "is_obfuscated", "encoding_type"],
+            "properties": {
+              "shell_technique": { "type": "string", "enum": ["tcp_reverse", "https_tunnel", "dns_cmd", "icmp_echo", "udp_raw"] },
+              "shell_environment": { "type": "string", "enum": ["posix", "windows", "custom", "unknown"] },
+              "is_obfuscated": { "type": "boolean" },
+              "encoding_type": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P5 Details: connection_established",
+      "if": { "properties": { "type": { "const": "connection_established" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "required": ["shell_technique", "shell_environment", "is_obfuscated", "encoding_type", "handshake_duration_ms", "interactive_prompt_ready"],
+            "properties": {
+              "shell_technique": { "type": "string", "enum": ["tcp_reverse", "https_tunnel", "dns_cmd", "icmp_echo", "udp_raw"] },
+              "shell_environment": { "type": "string", "enum": ["posix", "windows", "custom", "unknown"] },
+              "is_obfuscated": { "type": "boolean" },
+              "encoding_type": { "type": "string", "minLength": 1 },
+              "handshake_duration_ms": { "type": "integer", "minimum": 0 },
+              "interactive_prompt_ready": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P5 Details: connection_failed",
+      "if": { "properties": { "type": { "const": "connection_failed" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "required": ["shell_technique", "shell_environment", "failure_reason", "attempt_duration_ms"],
+            "properties": {
+              "shell_technique": { "type": "string", "enum": ["tcp_reverse", "https_tunnel", "dns_cmd", "icmp_echo", "udp_raw"] },
+              "shell_environment": { "type": "string", "enum": ["posix", "windows", "custom", "unknown"] },
+              "failure_reason": { "type": "string", "minLength": 1 },
+              "attempt_duration_ms": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P5 Details: session_activity",
+      "if": { "properties": { "type": { "const": "session_activity" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "required": ["shell_technique", "shell_environment", "is_obfuscated", "encoding_type", "command_label", "command_count_cumulative", "session_uptime_sec"],
+            "properties": {
+              "shell_technique": { "type": "string", "enum": ["tcp_reverse", "https_tunnel", "dns_cmd", "icmp_echo", "udp_raw"] },
+              "shell_environment": { "type": "string", "enum": ["posix", "windows", "custom", "unknown"] },
+              "is_obfuscated": { "type": "boolean" },
+              "encoding_type": { "type": "string", "minLength": 1 },
+              "command_label": {
+                "type": "string",
+                "enum": [
+                  "simulate_query_group_membership",
+                  "simulate_query_os_version",
+                  "simulate_check_privileges",
+                  "simulate_inspect_interfaces",
+                  "simulate_read_test_flag"
+                ]
+              },
+              "command_count_cumulative": { "type": "integer", "minimum": 1 },
+              "session_uptime_sec": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P5 Details: session_closed",
+      "if": { "properties": { "type": { "const": "session_closed" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "required": ["shell_technique", "shell_environment", "exit_reason", "total_session_duration_sec", "total_commands_executed"],
+            "properties": {
+              "shell_technique": { "type": "string", "enum": ["tcp_reverse", "https_tunnel", "dns_cmd", "icmp_echo", "udp_raw"] },
+              "shell_environment": { "type": "string", "enum": ["posix", "windows", "custom", "unknown"] },
+              "exit_reason": { "type": "string", "minLength": 1 },
+              "total_session_duration_sec": { "type": "integer", "minimum": 0 },
+              "total_commands_executed": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+
+    {
+      "comment": "P6 Details Common",
+      "if": { "properties": { "source": { "const": "p6_exfil" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["channel", "synthetic_payload_id"],
+            "properties": {
+              "channel": { "type": "string", "enum": ["dns_tunnel", "icmp_tunnel", "https_beacon"] },
+              "synthetic_payload_id": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "comment": "P6 Details: transfer_started",
+      "if": { "properties": { "type": { "const": "transfer_started" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "required": ["channel", "synthetic_payload_id", "encoding_type", "total_size_bytes", "chunk_size_bytes", "chunks_total"],
+            "properties": {
+              "channel": { "type": "string", "enum": ["dns_tunnel", "icmp_tunnel", "https_beacon"] },
+              "synthetic_payload_id": { "type": "string", "minLength": 1 },
+              "encoding_type": { "type": "string", "minLength": 1 },
+              "total_size_bytes": { "type": "integer", "exclusiveMinimum": 0 },
+              "chunk_size_bytes": { "type": "integer", "exclusiveMinimum": 0 },
+              "chunks_total": { "type": "integer", "exclusiveMinimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P6 Details: transfer_progress",
+      "if": { "properties": { "type": { "const": "transfer_progress" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "required": ["channel", "synthetic_payload_id", "encoding_type", "chunk_index", "chunks_total", "bytes_transferred_total", "total_size_bytes"],
+            "properties": {
+              "channel": { "type": "string", "enum": ["dns_tunnel", "icmp_tunnel", "https_beacon"] },
+              "synthetic_payload_id": { "type": "string", "minLength": 1 },
+              "encoding_type": { "type": "string", "minLength": 1 },
+              "chunk_index": { "type": "integer", "minimum": 0 },
+              "chunks_total": { "type": "integer", "exclusiveMinimum": 0 },
+              "bytes_transferred_total": { "type": "integer", "minimum": 0 },
+              "total_size_bytes": { "type": "integer", "exclusiveMinimum": 0 },
+              "effective_throughput_bps": { "type": ["number", "null"], "minimum": 0 },
+              "chunk_queries_count": { "type": ["integer", "null"], "minimum": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P6 Details: transfer_completed",
+      "if": { "properties": { "type": { "const": "transfer_completed" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "required": ["channel", "synthetic_payload_id", "total_bytes_transferred", "total_chunks_sent", "total_duration_sec", "effective_throughput_bps", "verification_hash"],
+            "properties": {
+              "channel": { "type": "string", "enum": ["dns_tunnel", "icmp_tunnel", "https_beacon"] },
+              "synthetic_payload_id": { "type": "string", "minLength": 1 },
+              "total_bytes_transferred": { "type": "integer", "exclusiveMinimum": 0 },
+              "total_chunks_sent": { "type": "integer", "exclusiveMinimum": 0 },
+              "total_duration_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "effective_throughput_bps": { "type": "number", "exclusiveMinimum": 0 },
+              "verification_hash": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P6 Details: transfer_failed",
+      "if": { "properties": { "type": { "const": "transfer_failed" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "required": ["channel", "synthetic_payload_id", "failure_reason", "bytes_transferred_before_failure", "chunks_transferred_before_failure"],
+            "properties": {
+              "channel": { "type": "string", "enum": ["dns_tunnel", "icmp_tunnel", "https_beacon"] },
+              "synthetic_payload_id": { "type": "string", "minLength": 1 },
+              "failure_reason": { "type": "string", "minLength": 1 },
+              "bytes_transferred_before_failure": { "type": "integer", "minimum": 0 },
+              "chunks_transferred_before_failure": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+
+    {
+      "comment": "P7 Details: beacon_missed",
+      "if": { "properties": { "type": { "const": "beacon_missed" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["trigger_condition", "last_event_id", "elapsed_sec", "threshold_sec", "recovery_permitted"],
+            "properties": {
+              "trigger_condition": { "type": "string", "const": "beacon_heartbeat_timeout" },
+              "last_event_id": { "$ref": "#/$defs/uuid_v4" },
+              "elapsed_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "threshold_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "recovery_permitted": { "type": "boolean", "const": true }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P7 Details: task_stalled",
+      "if": { "properties": { "type": { "const": "task_stalled" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["trigger_condition", "last_event_id", "elapsed_sec", "threshold_sec", "recovery_permitted"],
+            "properties": {
+              "trigger_condition": { "type": "string", "const": "task_progress_timeout" },
+              "last_event_id": { "$ref": "#/$defs/uuid_v4" },
+              "elapsed_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "threshold_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "recovery_permitted": { "type": "boolean", "const": true }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P7 Details: session_stalled",
+      "if": { "properties": { "type": { "const": "session_stalled" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["trigger_condition", "last_event_id", "elapsed_sec", "threshold_sec", "recovery_permitted"],
+            "properties": {
+              "trigger_condition": { "type": "string", "const": "session_idle_timeout" },
+              "last_event_id": { "$ref": "#/$defs/uuid_v4" },
+              "elapsed_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "threshold_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "recovery_permitted": { "type": "boolean", "const": true }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P7 Details: transfer_stalled",
+      "if": { "properties": { "type": { "const": "transfer_stalled" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["trigger_condition", "last_event_id", "elapsed_sec", "threshold_sec", "recovery_permitted"],
+            "properties": {
+              "trigger_condition": { "type": "string", "const": "transfer_chunk_timeout" },
+              "last_event_id": { "$ref": "#/$defs/uuid_v4" },
+              "elapsed_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "threshold_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "recovery_permitted": { "type": "boolean", "const": true }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "comment": "P7 Details: timeout_expired",
+      "if": { "properties": { "type": { "const": "timeout_expired" } } },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": ["trigger_condition", "last_event_id", "total_elapsed_sec", "grace_period_sec", "recovery_permitted"],
+            "properties": {
+              "trigger_condition": { "type": "string", "enum": ["grace_period_expired", "handshake_timeout"] },
+              "last_event_id": { "$ref": "#/$defs/uuid_v4" },
+              "total_elapsed_sec": { "type": "number", "exclusiveMinimum": 0 },
+              "grace_period_sec": { "type": "number", "minimum": 0 },
+              "recovery_permitted": { "type": "boolean", "const": false }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "trigger_condition": { "const": "handshake_timeout" } } },
+                "then": { "properties": { "grace_period_sec": { "const": 0 } } }
+              },
+              {
+                "if": { "properties": { "trigger_condition": { "const": "grace_period_expired" } } },
+                "then": { "properties": { "grace_period_sec": { "exclusiveMinimum": 0 } } }
+              }
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ]
+}
